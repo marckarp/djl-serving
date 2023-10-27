@@ -405,7 +405,7 @@ class DeepSpeedService(object):
 _service = DeepSpeedService()
 
 
-def partition(inputs: Input):
+def partition(ignored, inputs: Input):
     _service.initialize(inputs.get_properties())
 
 

@@ -18,7 +18,7 @@ def load_model(properties):
                                             use_triton=use_triton), use_triton
 
 
-def partition(inputs: Input):
+def partition(ignored, inputs: Input):
     properties = inputs.get_properties()
     tensor_parallel_degree = properties["tensor_parallel_degree"]
     pipeline_parallel_degree = 1  # TODO: add tests for pp_degree > 1

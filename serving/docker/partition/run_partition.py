@@ -33,7 +33,8 @@ def invoke_partition(properties):
     try:
         model_service = load_model_service(properties['model_dir'],
                                            properties['entryPoint'], None)
-        model_service.invoke_handler(handler, inputs)
+        inputs.properties["model_dir"] = model_service.model_dir
+        model_service(model_service, handler)(None, inputs)
     except Exception as e:
         logging.exception(f"Partitioning failed {str(e)}")
         raise Exception("Partitioning failed.")

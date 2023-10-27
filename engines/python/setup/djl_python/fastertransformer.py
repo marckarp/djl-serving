@@ -186,7 +186,7 @@ class FasterTransformerService(object):
 _service = FasterTransformerService()
 
 
-def partition(inputs: Input):
+def partition(ignored, inputs: Input):
     properties = inputs.get_properties()
     _service.initialize_properties(properties)
     ft.save_checkpoint(_service.model_id_or_path,

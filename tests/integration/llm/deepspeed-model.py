@@ -109,7 +109,7 @@ def pipeline_inference(model, tokenizer, batch_size, length):
     return [item[0]['generated_text'] for item in outputs]
 
 
-def partition(inputs: Input):
+def partition(ignored, inputs: Input):
     load_model(inputs.get_properties())
 
 
