@@ -1,0 +1,50 @@
+name: Nightly
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'release/nightly, default is nightly'
+        required: true
+        default: 'nightly'
+  schedule:
+    - cron: '0 13 * * *'
+
+jobs:
+  build:
+    uses: ./.github/workflows/docker_build.yml
+    secrets: inherit
+    with:
+      mode: ${{ github.events.inputs.mode }}
+  integration:
+    needs: [build]
+    uses: ./.github/workflows/integration.yml
+    secrets: inherit
+#  integration_llm:
+#    needs: [build]
+#    uses: ./.github/workflows/integration_llm.yml
+#    secrets: inherit
+#  integration_llm_inf2:
+#    needs: [build]
+#    uses: ./.github/workflows/integration_llm_inf2.yml
+#    secrets: inherit
+#  integration_llm_optimization:
+#    needs: [build]
+#    uses: ./.github/workflows/integration_llm_optimization.yml
+#    secrets: inherit
+#  integration_rolling_batch:
+#    needs: [build]
+#    uses: ./.github/workflows/integration_rolling_batch.yml
+#    secrets: inherit
+  publish:
+    needs:
+      - integration
+#      - integration_llm
+#      - integration_llm_inf2
+#      - integration_llm_optimization
+#      - integration_rolling_batch
+    uses: ./.github/workflows/docker_publish.yml
+    secrets: inherit
+    with:
+      mode: ${{ github.events.inputs.mode }}

@@ -1,15 +1,12 @@
-name: Rolling Batch Integration tests
+name: Integration tests - Rolling Batch
 
 on:
+  workflow_call:
   workflow_dispatch:
-    inputs:
-      djl-version:
-        description: 'The released version of DJL'
-        required: false
-        default: ''
-  schedule:
-    - cron: '0 6 * * *'
 
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   create-runners:
@@ -54,6 +51,15 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.10.x'
+      - name: install awscli
+        run: |
+          sudo apt-get update
+          sudo apt-get install awscli -y
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::185921645874:role/github-actions-djl-serving
+          aws-region: us-east-1
       - name: Install awscurl
         working-directory: tests/integration
         run: |
@@ -61,18 +67,19 @@ jobs:
           chmod +x awscurl
           mkdir outputs
       - name: Build container name
-        run: ./serving/docker/scripts/docker_name_builder.sh deepspeed ${{ github.event.inputs.djl-version }}
+        run: ./serving/docker/scripts/docker_name_builder.sh deepspeed temp
       - name: Download models and dockers
         working-directory: tests/integration
         run: |
-          docker pull deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $DJLSERVING_TEMP_REPO
+          docker pull $DJLSERVING_DOCKER
       - name: Test gpt2
         working-directory: tests/integration
         run: |
           # Correctness test
           rm -rf models
           python3 llm/prepare.py rolling_batch_scheduler gpt2
-          ./launch_container.sh deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG $PWD/models deepspeed \
+          ./launch_container.sh $DJLSERVING_DOCKER $PWD/models deepspeed \
           serve -m test=file:/opt/ml/model/test/
           python3 rb_client.py correctness gpt2
           docker rm -f $(docker ps -aq)
@@ -81,7 +88,7 @@ jobs:
         run: |
           rm -rf models
           python3 llm/prepare.py rolling_batch_scheduler bloom-560m
-          ./launch_container.sh deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG $PWD/models deepspeed \
+          ./launch_container.sh $DJLSERVING_DOCKER $PWD/models deepspeed \
           serve -m test=file:/opt/ml/model/test/
           python3 rb_client.py scheduler_single_gpu bloom-560m
           docker rm -f $(docker ps -aq)
@@ -90,7 +97,7 @@ jobs:
         run: |
           rm -rf models
           python3 llm/prepare.py rolling_batch_scheduler llama2-7b-chat-gptq
-          ./launch_container.sh deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG $PWD/models deepspeed \
+          ./launch_container.sh $DJLSERVING_DOCKER $PWD/models deepspeed \
           serve -m test=file:/opt/ml/model/test/
           python3 rb_client.py scheduler_single_gpu llama2-7b-chat-gptq
           docker rm -f $(docker ps -aq)
@@ -133,6 +140,15 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.10.x'
+      - name: install awscli
+        run: |
+          sudo apt-get update
+          sudo apt-get install awscli -y
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::185921645874:role/github-actions-djl-serving
+          aws-region: us-east-1
       - name: Install awscurl
         working-directory: tests/integration
         run: |
@@ -140,18 +156,19 @@ jobs:
           chmod +x awscurl
           mkdir outputs
       - name: Build container name
-        run: ./serving/docker/scripts/docker_name_builder.sh deepspeed ${{ github.event.inputs.djl-version }}
+        run: ./serving/docker/scripts/docker_name_builder.sh deepspeed temp
       - name: Download models and dockers
         working-directory: tests/integration
         run: |
-          docker pull deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $DJLSERVING_TEMP_REPO
+          docker pull $DJLSERVING_DOCKER
       - name: Test gptj-6b
         working-directory: tests/integration
         run: |
           # Concurrent requests test
           rm -rf models
           python3 llm/prepare.py rolling_batch_scheduler gpt-j-6b
-          ./launch_container.sh deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG $PWD/models deepspeed \
+          ./launch_container.sh $DJLSERVING_DOCKER $PWD/models deepspeed \
           serve -m test=file:/opt/ml/model/test/
           python3 rb_client.py scheduler_multi_gpu gpt-j-6b
           docker rm -f $(docker ps -aq)
@@ -196,18 +213,28 @@ jobs:
           python-version: '3.10.x'
       - name: Install pip dependencies
         run: pip3 install requests numpy
+      - name: install awscli
+        run: |
+          sudo apt-get update
+          sudo apt-get install awscli -y
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::185921645874:role/github-actions-djl-serving
+          aws-region: us-east-1
       - name: Build container name
-        run: ./serving/docker/scripts/docker_name_builder.sh deepspeed ${{ github.event.inputs.djl-version }}
+        run: ./serving/docker/scripts/docker_name_builder.sh deepspeed temp
       - name: Download docker
         working-directory: tests/integration
         run: |
-          docker pull deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $DJLSERVING_TEMP_REPO
+          docker pull $DJLSERVING_DOCKER
       - name: Test gpt-neox-20b
         working-directory: tests/integration
         run: |
           rm -rf models
           python3 llm/prepare.py lmi_dist gpt-neox-20b
-          ./launch_container.sh deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG $PWD/models deepspeed \
+          ./launch_container.sh $DJLSERVING_DOCKER $PWD/models deepspeed \
             serve -m test=file:/opt/ml/model/test/
           python3 llm/client.py lmi_dist gpt-neox-20b
           docker rm -f $(docker ps -aq)
@@ -216,7 +243,7 @@ jobs:
         run: |
           rm -rf models
           python3 llm/prepare.py lmi_dist falcon-7b
-          ./launch_container.sh deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG $PWD/models deepspeed \
+          ./launch_container.sh $DJLSERVING_DOCKER $PWD/models deepspeed \
             serve -m test=file:/opt/ml/model/test/
           python3 llm/client.py lmi_dist falcon-7b
           docker rm -f $(docker ps -aq)
@@ -225,7 +252,7 @@ jobs:
         run: |
           rm -rf models
           python3 llm/prepare.py lmi_dist open-llama-7b
-          ./launch_container.sh deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG $PWD/models deepspeed \
+          ./launch_container.sh $DJLSERVING_DOCKER $PWD/models deepspeed \
             serve -m test=file:/opt/ml/model/test/
           python3 llm/client.py lmi_dist open-llama-7b
           docker rm -f $(docker ps -aq)
@@ -234,7 +261,7 @@ jobs:
         run: |
           rm -rf models
           python3 llm/prepare.py lmi_dist flan-t5-xxl
-          ./launch_container.sh deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG $PWD/models deepspeed \
+          ./launch_container.sh $DJLSERVING_DOCKER $PWD/models deepspeed \
             serve -m test=file:/opt/ml/model/test/
           python3 llm/client.py lmi_dist flan-t5-xxl
           docker rm -f $(docker ps -aq)
@@ -243,7 +270,7 @@ jobs:
         run: |
           rm -rf models
           echo -en "SERVING_LOAD_MODELS=test::MPI=/opt/ml/model\nOPTION_MAX_ROLLING_BATCH_SIZE=2\nOPTION_OUTPUT_FORMATTER=jsonlines\nOPTION_TENSOR_PARALLEL_DEGREE=1\nOPTION_MODEL_ID=gpt2\nOPTION_TASK=text-generation\nOPTION_ROLLING_BATCH=lmi-dist" > docker_env
-          ./launch_container.sh deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG nocode deepspeed
+          ./launch_container.sh $DJLSERVING_DOCKER nocode deepspeed
           python3 llm/client.py lmi_dist gpt2
           docker rm -f $(docker ps -aq)
       - name: Test mpt-7b
@@ -251,7 +278,7 @@ jobs:
         run: |
           rm -rf models
           python3 llm/prepare.py lmi_dist mpt-7b
-          ./launch_container.sh deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG $PWD/models deepspeed \
+          ./launch_container.sh $DJLSERVING_DOCKER $PWD/models deepspeed \
             serve -m test=file:/opt/ml/model/test/
           python3 llm/client.py lmi_dist mpt-7b
           docker rm -f $(docker ps -aq)
@@ -260,7 +287,7 @@ jobs:
         run: |
           rm -rf models
           python3 llm/prepare.py lmi_dist octocoder
-          ./launch_container.sh deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG $PWD/models deepspeed \
+          ./launch_container.sh $DJLSERVING_DOCKER $PWD/models deepspeed \
             serve -m test=file:/opt/ml/model/test/
           python3 llm/client.py lmi_dist octocoder
           docker rm -f $(docker ps -aq)
@@ -269,7 +296,7 @@ jobs:
         run: |
           rm -rf models
           python3 llm/prepare.py lmi_dist gpt-neox-20b-bitsandbytes
-          ./launch_container.sh deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG $PWD/models deepspeed \
+          ./launch_container.sh $DJLSERVING_DOCKER $PWD/models deepspeed \
             serve -m test=file:/opt/ml/model/test/
           python3 llm/client.py lmi_dist gpt-neox-20b-bitsandbytes
           docker rm -f $(docker ps -aq)
@@ -278,7 +305,7 @@ jobs:
         run: |
           rm -rf models
           python3 llm/prepare.py lmi_dist llama2-13b-gptq
-          ./launch_container.sh deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG $PWD/models deepspeed \
+          ./launch_container.sh $DJLSERVING_DOCKER $PWD/models deepspeed \
             serve -m test=file:/opt/ml/model/test/
           python3 llm/client.py lmi_dist llama2-13b-gptq
           docker rm -f $(docker ps -aq)
@@ -312,18 +339,28 @@ jobs:
           python-version: '3.10.x'
       - name: Install pip dependencies
         run: pip3 install requests numpy
+      - name: install awscli
+        run: |
+          sudo apt-get update
+          sudo apt-get install awscli -y
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::185921645874:role/github-actions-djl-serving
+          aws-region: us-east-1
       - name: Build container name
-        run: ./serving/docker/scripts/docker_name_builder.sh deepspeed ${{ github.event.inputs.djl-version }}
+        run: ./serving/docker/scripts/docker_name_builder.sh deepspeed temp
       - name: Download docker
         working-directory: tests/integration
         run: |
-          docker pull deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $DJLSERVING_TEMP_REPO
+          docker pull $DJLSERVING_DOCKER
       - name: Test llama2-13b
         working-directory: tests/integration
         run: |
           rm -rf models
           python3 llm/prepare.py vllm llama2-13b
-          ./launch_container.sh deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG $PWD/models deepspeed \
+          ./launch_container.sh $DJLSERVING_DOCKER $PWD/models deepspeed \
             serve -m test=file:/opt/ml/model/test/
           python3 llm/client.py vllm llama2-13b
           docker rm -f $(docker ps -aq)
@@ -332,7 +369,7 @@ jobs:
         run: |
           rm -rf models
           python3 llm/prepare.py vllm gpt-neox-20b
-          ./launch_container.sh deepjavalibrary/djl-serving:$DJLSERVING_DOCKER_TAG $PWD/models deepspeed \
+          ./launch_container.sh $DJLSERVING_DOCKER $PWD/models deepspeed \
             serve -m test=file:/opt/ml/model/test/
           python3 llm/client.py vllm gpt-neox-20b
           docker rm -f $(docker ps -aq)
