@@ -18,6 +18,10 @@ on:
         required: true
         default: 'nightly'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   create-aarch64-runner:
     runs-on: [ self-hosted, scheduler ]
