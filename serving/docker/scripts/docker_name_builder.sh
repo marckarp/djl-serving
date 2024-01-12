@@ -4,7 +4,7 @@ arch=$1
 version=$2
 
 if [[ -z "$version" ]]; then
-  image="$arch-nightly"
+  image="$arch-test"
 else
   if [[ "$arch" == "cpu" ]]; then
     image=$version
